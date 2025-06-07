@@ -33,17 +33,17 @@ static const struct device *const numlock_led = DEVICE_DT_GET(NUMLOCK_LED_NODE);
 #endif
 
 static struct led_rgb numlock_led_on = {
-	.r = 4, .g = 1, .b = 1
+	.r = 3, .g = 0, .b = 1
 };
 static struct led_rgb numlock_led_off = {
 	.r = 0, .g = 0, .b = 0
 };
 
 static const struct led_rgb underglow_idle = {
-	.r = 60, .g = 40, .b = 220
+	.r = 52, .g = 70, .b = 255
 };
 static const struct led_rgb underglow_numlock_on = {
-	.r = 255, .g = 0, .b = 0
+	.r = 255, .g = 30, .b = 65
 };
 static struct led_rgb pixels[UNDERGLOW_NUM_PIXELS];
 
