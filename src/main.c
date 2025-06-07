@@ -39,13 +39,21 @@ static struct led_rgb numlock_led_off = {
 	.r = 0, .g = 0, .b = 0
 };
 
-static const struct led_rgb underglow_idle = {
+static struct led_rgb underglow_idle = {
 	.r = 60, .g = 40, .b = 220
 };
-static const struct led_rgb underglow_numlock_on = {
+static struct led_rgb underglow_numlock_on = {
 	.r = 255, .g = 0, .b = 0
 };
 static struct led_rgb pixels[UNDERGLOW_NUM_PIXELS];
+
+enum color_channel {
+	CHANNEL_R,
+	CHANNEL_G,
+	CHANNEL_B,
+};
+enum color_channel edit_channel = CHANNEL_R;
+struct led_rgb *edit_color = &underglow_idle;
 
 static const uint8_t hid_report_desc[] = HID_KEYBOARD_REPORT_DESC();
 
@@ -79,6 +87,7 @@ K_MSGQ_DEFINE(kb_msgq, sizeof(struct kb_event), 2, 1);
 UDC_STATIC_BUF_DEFINE(report, KB_REPORT_COUNT);
 static uint32_t kb_duration;
 static bool kb_ready;
+static bool numlock_on;
 
 static void kb_input_cb(struct input_event *evt, void *user_data)
 {
@@ -134,6 +143,17 @@ static int set_underglow_rgb(const struct led_rgb *color)
 	return led_strip_update_rgb(underglow_strip, pixels, UNDERGLOW_NUM_PIXELS);
 }
 
+static void update_leds()
+{
+	if (numlock_on) {
+		led_strip_update_rgb(numlock_led, &numlock_led_off, 1);
+		set_underglow_rgb(&underglow_idle);
+	} else {
+		led_strip_update_rgb(numlock_led, &numlock_led_on, 1);
+		set_underglow_rgb(&underglow_numlock_on);
+	}
+}
+
 static int kb_set_report(const struct device *dev,
 			 const uint8_t type, const uint8_t id, const uint16_t len,
 			 const uint8_t *const buf)
@@ -144,12 +164,12 @@ static int kb_set_report(const struct device *dev,
 	}
 
 	if (buf[0] & BIT(0)) {
-		led_strip_update_rgb(numlock_led, &numlock_led_off, 1);
-		set_underglow_rgb(&underglow_idle);
+		numlock_on = false;
 	} else {
-		led_strip_update_rgb(numlock_led, &numlock_led_on, 1);
-		set_underglow_rgb(&underglow_numlock_on);
+		numlock_on = true;
 	}
+
+	update_leds();
 
 	return 0;
 }
@@ -227,6 +247,60 @@ static void handle_kb_event(const struct device *hid_dev,
 		return;
 	}
 
+	switch (code) {
+	case INPUT_KEY_KP7:
+		edit_channel = CHANNEL_R;
+		edit_color = &underglow_idle;
+		return;
+	case INPUT_KEY_KP8:
+		edit_channel = CHANNEL_G;
+		edit_color = &underglow_idle;
+		return;
+	case INPUT_KEY_KP9:
+		edit_channel = CHANNEL_B;
+		edit_color = &underglow_idle;
+		return;
+
+	case INPUT_KEY_KP4:
+		edit_channel = CHANNEL_R;
+		edit_color = &underglow_numlock_on;
+		return;
+	case INPUT_KEY_KP5:
+		edit_channel = CHANNEL_G;
+		edit_color = &underglow_numlock_on;
+		return;
+	case INPUT_KEY_KP6:
+		edit_channel = CHANNEL_B;
+		edit_color = &underglow_numlock_on;
+		return;
+
+	case INPUT_KEY_KP1:
+		edit_channel = CHANNEL_R;
+		edit_color = &numlock_led_off;
+		return;
+	case INPUT_KEY_KP2:
+		edit_channel = CHANNEL_G;
+		edit_color = &numlock_led_off;
+		return;
+	case INPUT_KEY_KP3:
+		edit_channel = CHANNEL_B;
+		edit_color = &numlock_led_off;
+		return;
+
+	case INPUT_KEY_BACKSPACE:
+		edit_channel = CHANNEL_R;
+		edit_color = &numlock_led_on;
+		return;
+	case INPUT_KEY_KP0:
+		edit_channel = CHANNEL_G;
+		edit_color = &numlock_led_on;
+		return;
+	case INPUT_KEY_DOT:
+		edit_channel = CHANNEL_B;
+		edit_color = &numlock_led_on;
+		return;
+	}
+
 	if (value) {
 		report[KB_KEY_CODE1] = hid_code;
 		report[KB_MOD_KEY] = input_to_hid_modifier(code);
@@ -250,7 +324,6 @@ static void handle_enc_event(const struct device *hid_dev,
 			     uint16_t code, int32_t value)
 {
 	static int enc_events = 0;
-	int ret;
 
 	LOG_INF("Encoder event %d value %d", enc_events, value);
 	enc_events++;
@@ -260,46 +333,22 @@ static void handle_enc_event(const struct device *hid_dev,
 		return;
 	}
 
-	report[KB_KEY_CODE1] = HID_KEY_B;
-	report[KB_MOD_KEY] = HID_KBD_MODIFIER_LEFT_CTRL;
-
-	ret = hid_device_submit_report(hid_dev, KB_REPORT_COUNT, report);
-	if (ret) {
-		LOG_ERR("HID submit report error, %d", ret);
-		return;
+	switch (edit_channel) {
+	case CHANNEL_R:
+		edit_color->r += value;
+		break;
+	case CHANNEL_G:
+		edit_color->g += value;
+		break;
+	case CHANNEL_B:
+		edit_color->b += value;
+		break;
 	}
 
-	report[KB_KEY_CODE1] = 0;
-	report[KB_MOD_KEY] = 0;
+	LOG_INF("r: %u, g: %u, b: %u",
+		edit_color->r, edit_color->g, edit_color->b);
 
-	ret = hid_device_submit_report(hid_dev, KB_REPORT_COUNT, report);
-	if (ret) {
-		LOG_ERR("HID submit report error, %d", ret);
-		return;
-	}
-
-	if (value == 1) {
-		report[KB_KEY_CODE1] = HID_KEY_N;
-		report[KB_MOD_KEY] = 0;
-	} else if (value == -1) {
-		report[KB_KEY_CODE1] = HID_KEY_P;
-		report[KB_MOD_KEY] = 0;
-	}
-
-	ret = hid_device_submit_report(hid_dev, KB_REPORT_COUNT, report);
-	if (ret) {
-		LOG_ERR("HID submit report error, %d", ret);
-		return;
-	}
-
-	report[KB_KEY_CODE1] = 0;
-	report[KB_MOD_KEY] = 0;
-
-	ret = hid_device_submit_report(hid_dev, KB_REPORT_COUNT, report);
-	if (ret) {
-		LOG_ERR("HID submit report error, %d", ret);
-		return;
-	}
+	update_leds();
 }
 
 int main(void)
