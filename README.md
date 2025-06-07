@@ -2,7 +2,7 @@
 
 Firmware for tidbit-like numpad with Gateron switches and RP2040-Zero.
 
-`sample_usbd_init.c` is copied from Zephyr's `samples/subsys/usb/common/sample_usbd_init.c`.
+`usbd_init.c` is copied from Zephyr's `samples/subsys/usb/common/sample_usbd_init.c`.
 
 ## Building
 

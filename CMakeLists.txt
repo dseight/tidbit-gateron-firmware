@@ -7,5 +7,5 @@ project(tidbit-gateron)
 
 target_sources(app PRIVATE
   src/main.c
-  src/sample_usbd_init.c
+  src/usbd_init.c
 )
