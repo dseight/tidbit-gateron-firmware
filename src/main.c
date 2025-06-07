@@ -29,7 +29,7 @@ static const struct device *const numlock_led = DEVICE_DT_GET(NUMLOCK_LED_NODE);
 #if DT_NODE_HAS_PROP(DT_ALIAS(underglow_strip), chain_length)
 #define UNDERGLOW_NUM_PIXELS	DT_PROP(DT_ALIAS(underglow_strip), chain_length)
 #else
-#error Unable to determine length of LED strip
+#error "Unable to determine length of LED strip"
 #endif
 
 static struct led_rgb numlock_led_on = {
