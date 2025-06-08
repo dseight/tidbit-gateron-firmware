@@ -260,6 +260,9 @@ static void handle_enc_event(const struct device *hid_dev,
 		return;
 	}
 
+	if (IS_ENABLED(CONFIG_ENCODER_INVERSE))
+		value = -value;
+
 	report[KB_KEY_CODE1] = HID_KEY_B;
 	report[KB_MOD_KEY] = HID_KBD_MODIFIER_LEFT_CTRL;
 

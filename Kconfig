@@ -54,4 +54,9 @@ config USBD_20_EXTENSION_DESC
 
 endmenu
 
+config ENCODER_INVERSE
+	bool "Inverse rotary encoder readings"
+	help
+	  Inverse rotary encoder readings.
+
 source "Kconfig.zephyr"
